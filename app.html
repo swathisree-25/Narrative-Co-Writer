@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>StorySculpt — AI Storytelling Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Top Navigation Bar -->
+    <nav class="top-nav">
+      <div class="nav-container">
+        <div class="logo">StorySculpt</div>
+        <div class="nav-controls">
+          <div class="control-group">
+            <label>Genre</label>
+            <select class="nav-select">
+              <option>Romantic</option>
+              <option>Horror</option>
+              <option>Suspense</option>
+              <option>Thriller</option>
+              <option>Fantasy</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>Language</label>
+            <select class="nav-select">
+              <option>English</option>
+              <option>Spanish</option>
+              <option>French</option>
+            </select>
+          </div>
+          <button class="btn save-btn" id="saveBtn">💾 Save</button>
+          <button class="btn load-btn" id="loadBtn">📂 Load</button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Layout: Sidebar + Editor + Assistant -->
+    <div class="main-layout">
+      <!-- Left Sidebar -->
+      <aside class="sidebar">
+        <div class="panel glass">
+          <h3>Story Controls</h3>
+          
+          <div class="control">
+            <label>Genre</label>
+            <select>
+              <option>Romantic</option>
+              <option>Horror</option>
+              <option>Suspense</option>
+              <option>Thriller</option>
+              <option>Fantasy</option>
+              <option>Sci-Fi</option>
+              <option>Mystery</option>
+            </select>
+          </div>
+
+          <div class="control">
+            <label>Writing Mode</label>
+            <select>
+              <option>Beginning</option>
+              <option>Middle</option>
+              <option>Climax</option>
+              <option>Ending</option>
+            </select>
+          </div>
+
+          <div class="control">
+            <label>Tone</label>
+            <select>
+              <option>Dramatic</option>
+              <option>Creative</option>
+              <option>Emotional</option>
+              <option>Humorous</option>
+              <option>Dark</option>
+            </select>
+          </div>
+
+          <div class="control">
+            <label>Creativity Level: <span class="slider-value">75</span>%</label>
+            <input type="range" min="0" max="100" value="75" class="slider">
+          </div>
+
+          <div class="control">
+            <label>Response Length</label>
+            <select>
+              <option>Short</option>
+              <option>Medium</option>
+              <option>Long</option>
+            </select>
+          </div>
+
+          <button class="btn continue-btn">▶ Continue</button>
+        </div>
+      </aside>
+
+      <!-- Center Editor -->
+      <div class="editor-container">
+        <div class="editor-panel glass">
+          <textarea class="editor" placeholder="Once upon a time..."></textarea>
+          <div class="editor-glow"></div>
+        </div>
+      </div>
+
+      <!-- Right Assistant Panel -->
+      <aside class="assistant-panel">
+        <div class="panel glass">
+          <h3>AI Assistant</h3>
+          
+          <div class="button-group">
+            <button class="btn action-btn primary">✨ Generate</button>
+            <button class="btn action-btn secondary">⏭ Continue</button>
+            <button class="btn action-btn secondary">✏️ Edit Selection</button>
+          </div>
+
+          <div class="suggestion-area" id="suggestionArea">
+            <div class="empty-state">
+              <div class="beam-icon">🔮</div>
+              <p>Write a story idea or select text to begin</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Save/Load Modal -->
+    <div class="modal" id="loadModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>📂 Saved Stories</h2>
+          <button class="close-btn" id="closeModal">&times;</button>
+        </div>
+        <div class="saved-stories" id="savedStories">
+          <p style="color: var(--text-secondary); text-align: center; padding: 20px;">No saved stories yet. Start writing!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const slider = document.querySelector('.slider');
+    const sliderValue = document.querySelector('.slider-value');
+    const editor = document.querySelector('.editor');
+    const suggestionArea = document.getElementById('suggestionArea');
+    const generateBtn = document.querySelector('.action-btn.primary');
+    const continueBtn = document.querySelectorAll('.action-btn.secondary')[0];
+    const editBtn = document.querySelectorAll('.action-btn.secondary')[1];
+    
+    const sidebarSelects = document.querySelectorAll('.sidebar .control select');
+    const sidebarGenre = sidebarSelects[0];
+    const sidebarMode = sidebarSelects[1];
+    const sidebarTone = sidebarSelects[2];
+    const sidebarLength = sidebarSelects[3];
+
+    function showLoading() {
+      suggestionArea.innerHTML = '<div class="loading-spinner"><span></span><span></span><span></span></div><p style="color: var(--text-secondary); font-size: 13px; margin-top: 12px;">AI is thinking...</p>';
+    }
+
+    function showSuggestion(text) {
+      suggestionArea.innerHTML = `<div class="suggestion-content"><p>${text}</p><button class="btn secondary use-suggestion">Use This</button></div>`;
+      document.querySelector('.use-suggestion').addEventListener('click', () => {
+        editor.value = text;
+        editor.focus();
+      });
+    }
+
+    const storyStarters = {
+      romantic: {
+        beginning: [
+          "She walked into the dimly lit café, and their eyes met across the crowded room. Time seemed to stop for a moment.",
+          "He spotted her from across the ballroom, and everything else faded away. The world held its breath.",
+          "Their hands brushed as they reached for the same book on the shelf. An electric spark ignited between them."
+        ],
+        middle: [
+          "He reached for her hand, their fingers intertwining as the rain poured outside. 'I never thought I'd feel this way again,' she whispered.",
+          "Under the moonlight, they danced slowly to music only they could hear. Her heart raced as he pulled her closer.",
+          "They sat by the ocean's edge, sharing secrets they'd never told anyone else. Vulnerability became their greatest strength."
+        ],
+        climax: [
+          "Standing at the altar, he vowed to love her through every joy and challenge that life would bring.",
+          "On one knee beneath the starry sky, he asked the question that would change everything. Tears of joy streamed down her face.",
+          "In that moment, they realized their love could conquer any obstacle the world could throw at them."
+        ],
+        ending: [
+          "Years later, they sat on their porch, watching the sunset together, grateful for the journey they'd shared.",
+          "Decades had passed, but their love remained as vibrant as the day they first met. True love never fades.",
+          "Looking back on their lives, they knew that finding each other was the greatest adventure of all."
+        ]
+      },
+      horror: {
+        beginning: [
+          "The old mansion loomed before them, its windows dark and empty. Something felt terribly wrong.",
+          "The abandoned hospital stood silent on the hill, a monument to forgotten suffering. She felt eyes watching from within.",
+          "In the basement, they found scratches on the walls—and they were fresh."
+        ],
+        middle: [
+          "A shadow moved in the corner of the room. She wasn't alone anymore.",
+          "Footsteps echoed behind them, but when she turned, there was no one there. The presence was unmistakable.",
+          "The photographs on the walls were changing—faces shifting when nobody was looking."
+        ],
+        climax: [
+          "The creature emerged from the darkness, its eyes glowing with an ancient hunger.",
+          "Reality twisted around her as the entity revealed its true form—something no human mind could comprehend.",
+          "The walls began to bleed, and she understood the horrible truth about what lived here."
+        ],
+        ending: [
+          "She barely escaped with her life, haunted forever by what she'd witnessed in that cursed place.",
+          "The survivors never spoke of what happened, but the nightmares never stopped.",
+          "Some doors are meant to stay closed. Some secrets should never be uncovered."
+        ]
+      },
+      suspense: {
+        beginning: [
+          "The detective received an anonymous note: 'You have 24 hours to find the truth.'",
+          "The letter arrived without postage, written in shaky handwriting: 'They're coming for you.'",
+          "A mysterious package sat on her doorstep. Inside, a single photograph and an address."
+        ],
+        middle: [
+          "Clues began to appear, each one more disturbing than the last. Someone was watching her every move.",
+          "Following the trail of evidence, she realized the killer was closer than she'd ever imagined.",
+          "The details matched too perfectly—as if someone was playing a game, and she was the only one who knew the rules."
+        ],
+        climax: [
+          "The shocking reveal left her breathless—the killer had been closer than she ever imagined.",
+          "In the final confrontation, she discovered the identity of the murderer—and her blood ran cold.",
+          "The truth was more twisted than anyone could have predicted. Everything she believed was a lie."
+        ],
+        ending: [
+          "Justice was served, but the scars of the investigation would never fully heal.",
+          "The case was closed, but new questions emerged from the ashes.",
+          "Some truths, once known, can never be unknown. The damage was done."
+        ]
+      },
+      thriller: {
+        beginning: [
+          "The agent checked the dead drop location. The briefcase was gone.",
+          "His cover was blown. They knew who he was, and they were coming.",
+          "The encrypted message arrived: 'Abort mission. Trust no one.'"
+        ],
+        middle: [
+          "Running through the streets, pursued by unknown assailants, he realized he couldn't trust anyone.",
+          "Deep in enemy territory, she discovered her partner had betrayed her.",
+          "The stakes escalated with each passing moment. Every decision could be their last."
+        ],
+        climax: [
+          "In the final confrontation, he had to choose between his mission and his heart.",
+          "Face to face with the mastermind, she realized the conspiracy ran deeper than anyone knew.",
+          "The explosion lit up the night sky. Everything was about to change."
+        ],
+        ending: [
+          "The operation was a success, but the cost was higher than anyone anticipated.",
+          "Victory came at a price they weren't prepared to pay.",
+          "The mission was complete. Now came the hardest part—living with the consequences."
+        ]
+      },
+      fantasy: {
+        beginning: [
+          "In the kingdom of Elvandor, where magic flowed through ancient forests, a prophecy was awakening.",
+          "The dragon's egg had finally hatched, and with it came the return of an old power.",
+          "In the hidden valleys of Thorne, legends spoke of a hero yet to come."
+        ],
+        middle: [
+          "The hero discovered an old tome revealing the location of the lost artifact.",
+          "With each step forward, the curse grew stronger, and the barriers between worlds began to crumble.",
+          "The ancient magic awakened, and reality itself bent to their will."
+        ],
+        climax: [
+          "With the crystal staff in hand, they faced the dark lord in a battle of magic and will.",
+          "Reality shattered as the final spell was cast. The fate of kingdoms hung in the balance.",
+          "In the heart of the abyss, the hero made the ultimate sacrifice."
+        ],
+        ending: [
+          "Peace returned to the realm, and the hero became a legend whispered through the ages.",
+          "The curse was broken, but the scars of the war would mark the land forever.",
+          "A new era dawned, built on the foundation of sacrifice and courage."
+        ]
+      }
+    };
+
+    function getRandomVariation(options) {
+      return options[Math.floor(Math.random() * options.length)];
+    }
+
+    function generateVariedTone(baseTone) {
+      const toneVariations = {
+        dramatic: [
+          " The weight of the moment pressed down upon them like never before.",
+          " Everything hung in the balance as they faced their greatest challenge.",
+          " The air crackled with tension as fate itself seemed to hold its breath."
+        ],
+        creative: [
+          " Unexpected twists emerged, colors shifted, and reality bent in beautiful ways.",
+          " The world spiraled into new dimensions of possibility and wonder.",
+          " Imagination became reality, and nothing was what it seemed."
+        ],
+        emotional: [
+          " Tears fell as decades of hidden feelings finally found their voice.",
+          " Raw emotion poured out, breaking through years of carefully built walls.",
+          " In that moment, every suppressed feeling came rushing back."
+        ],
+        humorous: [
+          " Of course, life had other plans—comical, absurd, and perfectly timed.",
+          " Despite the gravity of it all, something ridiculous happened.",
+          " Fate had a twisted sense of humor, and the irony wasn't lost on them."
+        ],
+        dark: [
+          " Shadows crept in, and hope seemed like a distant memory.",
+          " Darkness consumed everything, leaving only despair in its wake.",
+          " Light fled, and only cold, empty void remained."
+        ]
+      };
+      
+      return getRandomVariation(toneVariations[baseTone] || [" The story continues..."]);
+    }
+
+    function generateVariedLength(baseLength) {
+      const lengthVariations = {
+        short: "",
+        medium: [
+          " The narrative deepened, revealing layers of complexity beneath the surface.",
+          " More details emerged, painting a richer picture of the unfolding tale.",
+          " Context shifted, adding nuance and depth to everything that came before."
+        ],
+        long: [
+          " What followed was an intricate tapestry of events, each thread connecting to form a greater whole. Pages upon pages unfolded with rich detail and vivid imagery.",
+          " The story sprawled across time and space, encompassing vast landscapes and countless moments. Every detail mattered, every choice echoed.",
+          " Layers upon layers of narrative complexity intertwined, creating a world so detailed it felt real. The scope expanded with each revelation."
+        ]
+      };
+      
+      if (baseLength === 'short') return "";
+      return getRandomVariation(lengthVariations[baseLength] || [""]);
+    }
+
+    function generateStory() {
+      showLoading();
+      
+      setTimeout(() => {
+        const genre = sidebarGenre.value.toLowerCase();
+        const mode = sidebarMode.value.toLowerCase();
+        const tone = sidebarTone.value.toLowerCase();
+        const length = sidebarLength.value.toLowerCase();
+
+        // Get random story starter for this genre/mode combo
+        const storyOptions = storyStarters[genre]?.[mode] || ["A new chapter unfolds..."];
+        let baseStory = getRandomVariation(storyOptions);
+        
+        // Get random tone variation
+        let continuation = generateVariedTone(tone);
+
+        // Get random length variation
+        let lengthExtension = generateVariedLength(length);
+
+        // Creativity boost
+        const creativity = slider.value;
+        let creativityBoost = "";
+        if (creativity > 70) {
+          const boosts = [
+            " Reality warped in unexpected and imaginative ways.",
+            " The impossible became possible in ways no one could predict.",
+            " Imagination painted the world in entirely new colors."
+          ];
+          creativityBoost = getRandomVariation(boosts);
+        }
+
+        const fullStory = baseStory + continuation + lengthExtension + creativityBoost;
+        editor.value = fullStory;
+        
+        // Show suggestion
+        const suggestion = baseStory + continuation;
+        showSuggestion(suggestion);
+        editor.focus();
+      }, 1500);
+    }
+
+    function continueStory() {
+      showLoading();
+      
+      setTimeout(() => {
+        if (!editor.value.trim()) {
+          generateStory();
+          return;
+        }
+
+        const genre = sidebarGenre.value.toLowerCase();
+        const tone = sidebarTone.value.toLowerCase();
+        
+        const continuations = {
+          romantic: [
+            "As they held each other close, they realized this was only the beginning of their story. The future stretched before them, full of promise and endless possibility.",
+            "Every moment with them felt like a dream they never wanted to wake from. Love had transformed their entire world.",
+            "In their arms, they found home—a place more real than any geography could define.",
+            "Time seemed irrelevant when they were together. All that mattered was this connection, this bond that defied explanation.",
+            "They whispered promises under the starlight, vows that would echo through eternity.",
+            "Her heart belonged to him completely, and she finally understood what poets meant when they wrote of love.",
+            "He traced her face gently, committing every detail to memory, afraid this moment might vanish.",
+            "Years of loneliness melted away in the warmth of their embrace.",
+            "Two souls, once adrift in a sea of uncertainty, had finally found their anchor.",
+            "Love wasn't just a feeling anymore—it was the very air they breathed.",
+            "In that embrace, they found a peace they'd been searching for their entire lives.",
+            "Their love story was just beginning, and they knew it would be legendary."
+          ],
+          horror: [
+            "The terror deepened as they realized this was far from over. Something ancient and hungry stirred in the darkness, and it had noticed them.",
+            "The nightmare was becoming more vivid, more real with each passing second. There was no escaping what lurked here.",
+            "They tried to flee, but the darkness followed, wrapping around them like chains.",
+            "A low growl echoed through the chamber, reverberating through their very bones.",
+            "The walls began to weep a dark, viscous liquid that smelled of corruption and decay.",
+            "Reality fractured, and glimpses of other dimensions bled through—each one more horrifying than the last.",
+            "They heard whispers in languages long dead, calling them deeper into the abyss.",
+            "The entity's presence was overwhelming, a pressure that threatened to crush their minds.",
+            "Screams echoed from nowhere and everywhere at once, harmonizing into a symphony of anguish.",
+            "The temperature plummeted, frost crawling across every surface like living fingers.",
+            "They realized with mounting horror that they were not alone—they had never been alone.",
+            "The creature's shadow engulfed them, and they understood that escape was impossible."
+          ],
+          suspense: [
+            "The plot thickened, and the stakes climbed higher still. Every move could be their last, and trust became a luxury they couldn't afford.",
+            "Another piece of the puzzle fell into place, but it only raised more terrifying questions.",
+            "The game continued, and they were still players in someone else's deadly design.",
+            "A new clue surfaced, one that changed everything they thought they knew.",
+            "The clock was ticking, and mistakes were no longer options—only consequences.",
+            "Someone had been watching them the whole time. The realization hit like ice water.",
+            "The next move belonged to their opponent, and they had no way of predicting what it would be.",
+            "Every shadow seemed to hide a threat, every sound a potential betrayal.",
+            "The intensity escalated beyond what they could have imagined just hours before.",
+            "They discovered they were not the hunters—they were the hunted.",
+            "The truth was hiding somewhere in plain sight, but its location remained maddeningly elusive.",
+            "Time was running out, and their options were dwindling with each passing moment."
+          ],
+          thriller: [
+            "The mission took an unexpected turn, forcing impossible choices. With enemies closing in, they had seconds to decide between loyalty and survival.",
+            "The clock was ticking, and every second brought them closer to the point of no return.",
+            "Betrayal struck from an unexpected angle, changing everything they thought they knew.",
+            "The operation spiraled into chaos as backup never arrived.",
+            "They realized they'd been set up from the very beginning.",
+            "A new threat emerged, one they hadn't anticipated or prepared for.",
+            "The extraction point had been compromised; they had to improvise or die.",
+            "Everything was falling apart, but surrender was not an option.",
+            "The enemy was closer than ever before, and retreat was no longer possible.",
+            "A shocking revelation forced them to question everyone they'd ever trusted.",
+            "The mission parameters had changed; the objective was no longer victory, but survival.",
+            "Adrenaline surged as they made the decision that would change everything."
+          ],
+          fantasy: [
+            "The adventure called to them once more, with new dangers and wonders awaiting. The prophecy was unfolding in ways no one had anticipated.",
+            "Magic surged through their veins as they embraced their true destiny.",
+            "The realm shifted around them, responding to the power they now wielded.",
+            "Ancient runes began to glow, awakening magic that had slumbered for centuries.",
+            "A mystical door materialized before them, leading to realms beyond imagination.",
+            "The dragon emerged from the clouds, its roar shaking the very foundations of the earth.",
+            "They channeled the elemental forces, bending nature itself to their will.",
+            "The prophecy spoke of this moment, and now they understood its true meaning.",
+            "Portals opened across the landscape, revealing paths to forgotten kingdoms.",
+            "Their companions arrived bearing artifacts of immense power and ancient knowledge.",
+            "The veil between worlds grew thin, and they glimpsed the infinite possibilities ahead.",
+            "Magic crystallized around them, granting them abilities they'd only dreamed of possessing."
+          ]
+        };
+
+        const nextParagraph = getRandomVariation(continuations[genre] || ["The story continues with new twists and revelations..."]);
+        editor.value += "\n\n" + nextParagraph;
+        
+        showSuggestion(nextParagraph);
+        editor.focus();
+      }, 1500);
+    }
+
+    function editSelection() {
+      const selected = editor.value.substring(editor.selectionStart, editor.selectionEnd);
+      if (selected) {
+        showLoading();
+        
+        setTimeout(() => {
+          const tone = sidebarTone.value.toLowerCase();
+          const editedVersions = {
+            dramatic: [
+              "Suddenly, everything changed. The moment crystallized, becoming something unforgettable.",
+              "The weight of reality crashed down with full force.",
+              "Everything that came before paled in comparison to this singular instant."
+            ],
+            creative: [
+              "In a burst of inspiration, the words transformed the entire narrative landscape.",
+              "Colors exploded across the canvas of imagination, painting new possibilities.",
+              "Reality fractured and reformed into something more beautiful."
+            ],
+            emotional: [
+              "Raw emotion broke through the surface, revealing vulnerabilities long hidden.",
+              "Decades of suppressed feelings burst forth in a torrent of confession.",
+              "The heart spoke truths the mind had been too afraid to acknowledge."
+            ],
+            humorous: [
+              "Despite the gravity of the situation, an unexpected laugh escaped their lips.",
+              "Irony struck at the worst possible moment, and somehow it was hilarious.",
+              "Comedy emerged from the darkest corners of circumstance."
+            ],
+            dark: [
+              "The story took a shadowy turn, darker than anyone could have predicted.",
+              "Light retreated, leaving only shadows and cold despair.",
+              "Hope died, replaced by the cold certainty of doom."
+            ]
+          };
+          
+          const editSuggestion = getRandomVariation(editedVersions[tone] || ["The text has been reimagined in new ways..."]);
+          showSuggestion(editSuggestion);
+        }, 1500);
+      } else {
+        showSuggestion("Please select some text in the editor to edit.");
+      }
+    }
+
+    slider.addEventListener('input', (e) => {
+      sliderValue.textContent = e.target.value;
+    });
+
+    generateBtn.addEventListener('click', generateStory);
+    continueBtn.addEventListener('click', continueStory);
+    editBtn.addEventListener('click', editSelection);
+
+    // Save & Load functionality
+    const saveBtn = document.getElementById('saveBtn');
+    const loadBtn = document.getElementById('loadBtn');
+    const loadModal = document.getElementById('loadModal');
+    const closeModal = document.getElementById('closeModal');
+    const savedStoriesDiv = document.getElementById('savedStories');
+
+    function getSavedStories() {
+      const saved = localStorage.getItem('savedStories');
+      return saved ? JSON.parse(saved) : [];
+    }
+
+    function saveStory() {
+      const content = editor.value.trim();
+      if (!content) {
+        alert('Please write something before saving!');
+        return;
+      }
+
+      const stories = getSavedStories();
+      const timestamp = new Date().toLocaleString();
+      const storyObj = {
+        id: Date.now(),
+        content: content,
+        genre: sidebarGenre.value,
+        mode: sidebarMode.value,
+        tone: sidebarTone.value,
+        length: sidebarLength.value,
+        creativity: slider.value,
+        savedAt: timestamp
+      };
+
+      stories.unshift(storyObj);
+      localStorage.setItem('savedStories', JSON.stringify(stories));
+      alert('✅ Story saved successfully!');
+    }
+
+    function displaySavedStories() {
+      const stories = getSavedStories();
+      
+      if (stories.length === 0) {
+        savedStoriesDiv.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No saved stories yet. Start writing!</p>';
+        return;
+      }
+
+      savedStoriesDiv.innerHTML = stories.map(story => `
+        <div class="story-item">
+          <div class="story-header">
+            <div>
+              <h4>${story.genre} • ${story.mode}</h4>
+              <p class="story-time">${story.savedAt}</p>
+            </div>
+            <div class="story-actions">
+              <button class="btn tiny-btn load-story" data-id="${story.id}">📖 Load</button>
+              <button class="btn tiny-btn delete-story" data-id="${story.id}">🗑 Delete</button>
+            </div>
+          </div>
+          <p class="story-preview">${story.content.substring(0, 100)}...</p>
+        </div>
+      `).join('');
+
+      // Add event listeners for load/delete buttons
+      document.querySelectorAll('.load-story').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const storyId = parseInt(e.target.dataset.id);
+          const story = stories.find(s => s.id === storyId);
+          if (story) {
+            editor.value = story.content;
+            sidebarGenre.value = story.genre;
+            sidebarMode.value = story.mode;
+            sidebarTone.value = story.tone;
+            sidebarLength.value = story.length;
+            slider.value = story.creativity;
+            sliderValue.textContent = story.creativity;
+            loadModal.style.display = 'none';
+            editor.focus();
+          }
+        });
+      });
+
+      document.querySelectorAll('.delete-story').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const storyId = parseInt(e.target.dataset.id);
+          if (confirm('Delete this story?')) {
+            const updatedStories = stories.filter(s => s.id !== storyId);
+            localStorage.setItem('savedStories', JSON.stringify(updatedStories));
+            displaySavedStories();
+          }
+        });
+      });
+    }
+
+    saveBtn.addEventListener('click', saveStory);
+    loadBtn.addEventListener('click', () => {
+      displaySavedStories();
+      loadModal.style.display = 'flex';
+    });
+
+    closeModal.addEventListener('click', () => {
+      loadModal.style.display = 'none';
+    });
+
+    loadModal.addEventListener('click', (e) => {
+      if (e.target === loadModal) {
+        loadModal.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
